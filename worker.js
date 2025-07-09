@@ -6,7 +6,7 @@ async function handleRequest(request) {
   // 允许跨域请求
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS, DELETE',
     'Access-Control-Allow-Headers': '*'
   }
 
@@ -22,6 +22,15 @@ async function handleRequest(request) {
     const url = new URL(request.url)
     const pathname = url.pathname
 
+    // 处理 DELETE 请求，用于清除缓存
+    if (request.method === 'DELETE') {
+      const cache = caches.default
+      await cache.delete(url)
+      return new Response('缓存已清除', {
+        headers: corsHeaders
+      })
+    }
+
     if (pathname.startsWith('/original/')) {
     // 移除基础路径和开头的斜杠
     const targetPath = pathname.replace('/original/', '')
@@ -34,13 +43,12 @@ async function handleRequest(request) {
     }
 
     // 检查缓存
-    const cacheKey = request.url
     const cache = caches.default
-    let response = await cache.match(cacheKey)
+    let response = await cache.match(url)
 
     if (!response) {
       // 如果缓存中没有，则获取新的截图
-      const thumbUrl = `https://image.thum.io/get/noanimate/${targetPath}`
+      const thumbUrl = `https://image.thum.io/get/maxAge/8/noanimate/${targetPath}`
       response = await fetch(thumbUrl)
 
       // 创建新的响应对象，添加缓存控制头
@@ -56,14 +64,14 @@ async function handleRequest(request) {
       })
 
       // 存入缓存
-      await cache.put(cacheKey, response.clone())
+      await cache.put(url, response.clone())
     }
     return response
     } else if(pathname.startsWith('/simple/')){
             // 移除基础路径和开头的斜杠
-            const url = pathname.replace('/simple/', '')
+            const path = pathname.replace('/simple/', '')
 
-            if (!url) {
+            if (!path) {
               return new Response('请提供完整的截图参数和目标 URL', {
                 status: 400,
                 headers: corsHeaders
@@ -71,13 +79,12 @@ async function handleRequest(request) {
             }
         
             // 检查缓存
-            const cacheKey = request.url
             const cache = caches.default
-            let response = await cache.match(cacheKey)
+            let response = await cache.match(url)
         
             if (!response) {
               // 如果缓存中没有，则获取新的截图
-              const thumbUrl = `https://image.thum.io/get/noanimate/width/1280/crop/720/${url}`
+              const thumbUrl = `https://image.thum.io/get/maxAge/8/noanimate/width/1280/crop/720/${path}`
               response = await fetch(thumbUrl)
         
               // 创建新的响应对象，添加缓存控制头
@@ -93,7 +100,7 @@ async function handleRequest(request) {
               })
         
               // 存入缓存
-              await cache.put(cacheKey, response.clone())
+              await cache.put(url, response.clone())
             }
             return response
 
